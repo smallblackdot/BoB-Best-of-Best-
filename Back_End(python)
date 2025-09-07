@@ -104,7 +104,6 @@ def add_user():
     email = request.form.get("email")
     address_x = Random_x()
     address_y = Random_y()
-    request_limit = 5
     last_time_requst = None
 
     user = {
@@ -239,21 +238,15 @@ def request_supply():
     if not user or not shelter:
         return "<h2>User or Shelter not found!</h2>"
 
-    now = time.time()
-    if user.get("last_request_time") and now - user["last_request_time"] < 30:
-        wait_time = 30 - (now - user["last_request_time"])
-        return f"<h2>User {UID} must wait {int(wait_time)} more seconds before requesting again.</h2>"
-
-    if user["requestLimit"] <= 0:
-        return "<h2>User has no requests left!</h2>"
     if shelter["supply"] <= 0:
         return "<h2>Shelter has no supply left!</h2>"
 
-    user["requestLimit"] -= 1
-    shelter["supply"] -= 1        # 灾民消耗 shelter 物资
-    shelter["demand"] += 1  
-    user["last_request_time"] = now
-    return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left. The time between the user asked for supply is {user["last_time_request"]}</h2>"
+    # 用户请求物资，减少 shelter supply
+    shelter["supply"] -= 1        
+    shelter["demand"] += 1       # 记录需求
+    user["last_request_time"] = time.time()  # 记录请求时间
+
+    return f"<h2>Supply granted! Shelter {ShID} has {shelter['supply']} supply left. User {UID} requested at {user['last_request_time']}</h2>"
 
 @app.route("/auto_dispatch_request", methods=["POST"])
 def auto_dispatch_request():
@@ -263,41 +256,49 @@ def auto_dispatch_request():
 
     for shelter in Database.shelters:
         threshold = 50
-        # 计算需要派车的数量
         demand = max(0, shelter["demand"] + threshold - shelter["supply"])
 
         while demand > 0:
-            # 找最近且有 supply 的 repository
-            repo = next((r for r in Database.repository if r["supply"].get(supply_type, 0) > 0), None)
+            # 找空闲 truck
+            truck = next((t for t in Database.trucks if t["status"] == "idle"), None)
+            if not truck:
+                break  # 没有空闲车了
+
+            # 找仓库
+            repo = next((r for r in Database.repository if r["supply"].get(supply_type,0) > 0), None)
             if not repo:
-                break  # 没有仓库了
+                break
 
             move_amount = min(truck_capacity, repo["supply"][supply_type], demand)
-            # 创建 truck
-            truck = {
-                "TID": Database.TID,
-                "from_repository": repo["RID"],
-                "to_shelter": shelter["ShID"],
-                "truck_supply": move_amount,
-                "supply_type": supply_type,
-                "status": "dispatched"
-            }
-            Database.trucks.append(truck)
-            Database.TID += 1
 
-            # 更新仓库和 shelter
+            # 更新仓库物资
             repo["supply"][supply_type] -= move_amount
-            shelter["supply"] += move_amount
-            shelter["demand"] -= move_amount
+
+            # 标记 truck 派送
+            truck["status"] = "dispatched"
+            truck["to_shelter"] = shelter["ShID"]
+            truck["truck_supply"] = move_amount
+            truck["supply_type"] = supply_type
+
+            # 模拟配送完成
+            complete_truck_delivery(truck, shelter, move_amount)
 
             dispatched_trucks.append(truck)
-            # 重新计算需求
             demand = max(0, shelter["demand"] + threshold - shelter["supply"])
 
     return jsonify({
         "message": f"Auto dispatch complete! {len(dispatched_trucks)} trucks dispatched for {supply_type}.",
         "trucks": dispatched_trucks
     })
+
+def complete_truck_delivery(truck, shelter, move_amount):
+    """模拟配送完成后回归 idle"""
+    shelter["supply"] += move_amount
+    shelter["demand"] = max(0, shelter["demand"] - move_amount)
+    truck["status"] = "idle"
+    truck["truck_supply"] = 0
+    truck.pop("to_shelter", None)
+
 
 
 
