@@ -247,7 +247,8 @@ def request_supply():
         return "<h2>Shelter has no supply left!</h2>"
 
     user["requestLimit"] -= 1
-    shelter["supply"] -= 1
+    shelter["supply"] -= 1        # 灾民消耗 shelter 物资
+    Database.demands[ShID] += 1   # 同时记录需求，等待仓库补货
     user["last_request_time"] = now
     return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left. The time between the user asked for supply is {user["last_time_request"]}</h2>"
 
