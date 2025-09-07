@@ -4,17 +4,25 @@
 <meta charset="utf-8">
 <title>Victims, Shelters & Repositories Display</title>
 <style>
-  #map {
+  body {
+    display: flex;
+    justify-content: center;
+    font-family: Arial, sans-serif;
+  }
+  #map-container {
     position: relative;
+  }
+  #map {
     width: 800px;
     height: 500px;
     background: #eef;
     border: 1px solid black;
-    margin: 20px auto;
+    margin: 20px;
+    position: relative;
   }
   .dot {
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     position: absolute;
     cursor: pointer;
@@ -22,48 +30,73 @@
   .victim { background-color: red; }
   .shelter { background-color: blue; }
   .repository { background-color: green; }
-  .truck { background-color: lime; }
   .tooltip {
     position: absolute;
-    padding: 5px 10px;
+    padding: 8px 12px;
     background: white;
     border: 1px solid black;
-    border-radius: 4px;
+    border-radius: 6px;
     display: none;
-    font-size: 12px;
+    font-size: 14px;
     pointer-events: none;
+    z-index: 1000;
   }
   svg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+  #info {
+    margin: 20px;
+    width: 250px;
+  }
+  #info h3 {
+    margin-top: 0;
+  }
+  .info-section {
+    margin-bottom: 20px;
+  }
+  .info-item {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    background: #fafafa;
+  }
 </style>
 </head>
 <body>
-<h2 style="text-align:center;">Victims, Shelters & Repositories</h2>
-<div id="map">
-  <svg id="connections"></svg>
-</div>
-<div id="tooltip" class="tooltip"></div>
+  <div id="map-container">
+    <div id="map">
+      <svg id="connections"></svg>
+    </div>
+  </div>
+
+  <div id="info">
+    <div class="info-section">
+      <h3>Shelters</h3>
+      <div id="shelter-info"></div>
+    </div>
+    <div class="info-section">
+      <h3>Repositories</h3>
+      <div id="repo-info"></div>
+    </div>
+  </div>
+
+  <div id="tooltip" class="tooltip"></div>
 
 <script>
 const map = document.getElementById("map");
 const tooltip = document.getElementById("tooltip");
 const svg = document.getElementById("connections");
-const DOT_SIZE = 12;
+const DOT_SIZE = 8;
 const DOT_RADIUS = DOT_SIZE / 2;
 
 let victims = [];
 let shelters = [];
 let repositories = [];
-let trucks = [];
 
-// Scale coordinates to map size
+// Scale coordinates
 function scaleX(x){ return x / 100 * (map.clientWidth - DOT_SIZE); }
 function scaleY(y){ return y / 100 * (map.clientHeight - DOT_SIZE); }
 
-function clearMap(){
-  map.querySelectorAll(".dot").forEach(d => d.remove());
-  while(svg.firstChild) svg.removeChild(svg.firstChild);
-}
-
+// Draw lines
 function drawLine(x1, y1, x2, y2){
   const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
   line.setAttribute("x1", x1);
@@ -75,33 +108,36 @@ function drawLine(x1, y1, x2, y2){
   svg.appendChild(line);
 }
 
+// Draw dots with hover tooltip
 function draw(){
-  clearMap();
+  map.querySelectorAll(".dot").forEach(d => d.remove());
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
 
-  // Draw victims
+  // Victims
   victims.forEach(v => {
     const dot = document.createElement("div");
     dot.className = "dot victim";
     dot.style.left = scaleX(v.address_x) + "px";
     dot.style.top = scaleY(v.address_y) + "px";
-    dot.style.zIndex = 3;
+
     dot.addEventListener("mouseenter", () => {
-      tooltip.innerHTML = `Victim ID: ${v.UID}<br>Name: ${v.name}<br>Requests left: ${v.requestLimit}`;
+      tooltip.innerHTML = `Victim ID: ${v.UID}<br>Name: ${v.name}`;
       tooltip.style.left = scaleX(v.address_x) + DOT_SIZE + "px";
       tooltip.style.top = scaleY(v.address_y) - 10 + "px";
       tooltip.style.display = "block";
     });
     dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+
     map.appendChild(dot);
   });
 
-  // Draw shelters
+  // Shelters
   shelters.forEach(s => {
     const dot = document.createElement("div");
     dot.className = "dot shelter";
     dot.style.left = scaleX(s.address_x) + "px";
     dot.style.top = scaleY(s.address_y) + "px";
-    dot.style.zIndex = 2;
+
     dot.addEventListener("mouseenter", () => {
       tooltip.innerHTML = `Shelter: ${s.address || "Unnamed"}<br>Supply: ${s.supply}`;
       tooltip.style.left = scaleX(s.address_x) + DOT_SIZE + "px";
@@ -109,53 +145,74 @@ function draw(){
       tooltip.style.display = "block";
     });
     dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+
     map.appendChild(dot);
   });
 
-  // Draw repositories and lines to shelters
+  // Repositories
   repositories.forEach(r => {
     const dot = document.createElement("div");
     dot.className = "dot repository";
     dot.style.left = scaleX(r.address_x) + "px";
     dot.style.top = scaleY(r.address_y) + "px";
-    dot.style.zIndex = 4;
+
     dot.addEventListener("mouseenter", () => {
-      tooltip.innerHTML = `Repository ID: ${r.RID}<br>Name: ${r.repository_name}<br>Supply: ${r.supply.general}`;
+      tooltip.innerHTML = `Repository: ${r.repository_name}<br>Supply: ${r.supply.general}`;
       tooltip.style.left = scaleX(r.address_x) + DOT_SIZE + "px";
       tooltip.style.top = scaleY(r.address_y) - 10 + "px";
       tooltip.style.display = "block";
     });
     dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+
     map.appendChild(dot);
 
     // Draw lines to shelters
     shelters.forEach(s => {
-      drawLine(
-        scaleX(r.address_x) + DOT_RADIUS,
-        scaleY(r.address_y) + DOT_RADIUS,
-        scaleX(s.address_x) + DOT_RADIUS,
-        scaleY(s.address_y) + DOT_RADIUS
-      );
+      drawLine(scaleX(r.address_x)+DOT_RADIUS, scaleY(r.address_y)+DOT_RADIUS,
+               scaleX(s.address_x)+DOT_RADIUS, scaleY(s.address_y)+DOT_RADIUS);
     });
   });
 }
 
+// Update side info
+function updateInfo(){
+  const shelterDiv = document.getElementById("shelter-info");
+  const repoDiv = document.getElementById("repo-info");
+  shelterDiv.innerHTML = "";
+  repoDiv.innerHTML = "";
+
+  shelters.forEach(s => {
+    const item = document.createElement("div");
+    item.className = "info-item";
+    item.innerHTML = `<strong>${s.address || "Unnamed"}</strong><br>Supply: ${s.supply}`;
+    shelterDiv.appendChild(item);
+  });
+
+  repositories.forEach(r => {
+    const item = document.createElement("div");
+    item.className = "info-item";
+    item.innerHTML = `<strong>${r.repository_name}</strong><br>Supply: ${r.supply.general}`;
+    repoDiv.appendChild(item);
+  });
+}
+
+// Fetch and draw
 function fetchDataAndDraw(){
   Promise.all([
     fetch("http://127.0.0.1:5000/api/users").then(r=>r.json()),
     fetch("http://127.0.0.1:5000/api/shelters").then(r=>r.json()),
     fetch("http://127.0.0.1:5000/api/repositories").then(r=>r.json())
-  ]).then(([v,s,r])=>{
+  ]).then(([v, s, r])=>{
     victims = v;
     shelters = s;
     repositories = r;
     draw();
-  }).catch(err => console.error("Fetch error:", err));
+    updateInfo();
+  }).catch(err => console.error(err));
 }
 
-// Initial draw
 fetchDataAndDraw();
-setInterval(fetchDataAndDraw, 2000); // Refresh every 2 seconds
+setInterval(fetchDataAndDraw, 1500);
 window.addEventListener("resize", draw);
 </script>
 </body>

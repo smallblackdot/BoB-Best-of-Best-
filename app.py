@@ -69,8 +69,7 @@ for _ in range(500):
         "email": "N/A",
         "address_x": Random_x(),
         "address_y": Random_y(),
-        "requestLimit": 5,
-        "last_request_time": 0,
+        "last_request_time": 0,  # 删除 requestLimit
     }
     Database.users.append(user)
     Database.UID += 1
@@ -134,8 +133,7 @@ def add_user():
         "email": email,
         "address_x": address_x,
         "address_y": address_y,
-        "last_request_time": 0,
-        "requestLimit": 5
+        "last_request_time": 0,  # 删除 requestLimit
     }
     Database.users.append(user)
     Database.UID += 1
@@ -153,8 +151,9 @@ def add_shelter():
             "address_x": int(center[0]),
             "address_y": int(center[1]),
             "address": f"Shelter {Database.ShID}",
-            "supply": 50,
-            "demand": 0
+            "supply": 50,  # initial stock
+            "demand": 0,
+            "storage_capacity": 50  # NEW: maximum storage limit
         }
         Database.shelters.append(shelter)
         added_shelters.append(shelter)
@@ -190,56 +189,77 @@ def request_supply():
     if not user or not shelter:
         return "<h2>User or Shelter not found!</h2>"
 
-    if shelter["supply"] <= 0:
+    if shelter["supply"] > 0:
+        shelter["supply"] -= 1
+        shelter["demand"] += 1
+        user["last_request_time"] = time.time()
+        return f"<h2>Supply granted! Shelter {ShID} has {shelter['supply']} supply left. User {UID} requested at {user['last_request_time']}</h2>"
+    else:
         return "<h2>Shelter has no supply left!</h2>"
-
-    shelter["supply"] -= 1
-    shelter["demand"] += 1
-    user["last_request_time"] = time.time()
-    user["requestLimit"] = user.get("requestLimit", 5) - 1
-
-    return f"<h2>Supply granted! Shelter {ShID} has {shelter['supply']} supply left. User {UID} requested at {user['last_request_time']}</h2>"
 
 # ---------- Auto supply from repository ----------
 def auto_supply_from_repo():
     """
-    For each shelter, if demand + threshold > supply,
-    send supplies from repository directly.
+    For each shelter, if (demand + threshold) > supply,
+    send supplies from repository in fixed truck loads (20 units each),
+    but do not exceed shelter's storage capacity.
     """
-    threshold = 50
+    threshold = 20
     repo = Database.repository[0]  # assume single repository
+
     for shelter in Database.shelters:
-        demand = max(0, shelter["demand"] + threshold - shelter["supply"])
-        if demand <= 0:
-            continue
-        supply_available = repo["supply"]["general"]
-        move_amount = min(demand, supply_available)
-        shelter["supply"] += move_amount
-        repo["supply"]["general"] -= move_amount
-        shelter["demand"] = max(0, shelter["demand"] - move_amount)
-        if move_amount > 0:
-            print(f"Repository sent {move_amount} to Shelter {shelter['ShID']}")
+        if "storage_capacity" not in shelter:
+            shelter["storage_capacity"] = 50
+
+        # Check if this shelter needs resupply
+        if shelter["demand"] + threshold > shelter["supply"]:
+            if repo["supply"]["general"] <= 0:
+                continue  # repository empty, skip
+
+            # Each truck always carries 20 units
+            move_amount = min(20, repo["supply"]["general"])
+
+            # Check storage capacity
+            available_space = shelter["storage_capacity"] - shelter["supply"]
+            if available_space <= 0:
+                continue  # shelter is full
+
+            # Final amount = limited by both repo stock and storage space
+            move_amount = min(move_amount, available_space)
+
+            # Deliver to shelter
+            shelter["supply"] += move_amount
+            repo["supply"]["general"] -= move_amount
+
+            # Reduce demand, but not below 0
+            shelter["demand"] = max(0, shelter["demand"] - move_amount)
+
+            print(f"delivered {move_amount} supplies from to Shelter {shelter['ShID']} (capacity {shelter['storage_capacity']})")
+
 
 # ---------- Random requests loop ----------
-def random_requests_loop():
+def random_requests_loop(speed_factor=0.1):
     while True:
         if not Database.users or not Database.shelters:
-            time.sleep(1)
+            time.sleep(0.1 * speed_factor)  # shorter wait if no data
             continue
 
         user = random.choice(Database.users)
         shelter = random.choice(Database.shelters)
 
-        if shelter["supply"] > 0 and user.get("requestLimit", 5) > 0:
+        # Simulate request
+        if shelter["supply"] > 0:
             shelter["supply"] -= 1
             shelter["demand"] += 1
             user["last_request_time"] = time.time()
-            user["requestLimit"] = user.get("requestLimit", 5) - 1
             print(f"User {user['UID']} requested from Shelter {shelter['ShID']}")
 
-        # Direct repository supply
+        # Auto-supply triggered after request
         auto_supply_from_repo()
-        time.sleep(random.uniform(0.5, 2.0))
+
+        # Faster or slower simulation controlled here
+        time.sleep(random.uniform(0.1, 0.5) * speed_factor)
+
 
 # Start random requests in a separate thread
 threading.Thread(target=random_requests_loop, daemon=True).start()
