@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import random
+import time
 
 app = Flask(__name__)
 CORS(app)
@@ -33,7 +34,8 @@ for i in range(100):
         "email": "N/A",
         "address_x": Random_x(),
         "address_y": Random_y(),
-        "requestLimit": 5
+        "requestLimit": 5,
+        "last_request_time": 0,
     }
     Database.users.append(user)
     Database.UID += 1
@@ -57,6 +59,7 @@ def add_user():
     address_x = Random_x()
     address_y = Random_y()
     request_limit = 5
+    last_time_requst = None
 
     user = {
         "UID": Database.UID,
@@ -65,7 +68,8 @@ def add_user():
         "email": email,
         "address_x": address_x,
         "address_y": address_y,
-        "requestLimit": request_limit
+        "requestLimit": request_limit,
+        "last_time_requst": 0,
     }
     Database.users.append(user)
     Database.UID += 1
@@ -105,7 +109,7 @@ def add_repository():
         "address_y": Database.repository_address_y,
     }
     Database.repository.append(repository)
-    return f"<h2>Repository {repository["RID"]} added at {address_repository}</h2>"
+    return f"<h2>Repository {Database.RID} added at {address_repository}</h2>"
 
 @app.route("/add_truck", methods=["POST"])
 def add_Truck():
@@ -123,6 +127,8 @@ def add_Truck():
         "end_point": end_point,
         "truck_supply": truck_supply,
     }
+    Database.repository.append(truck)
+    return f"<<h2>truck added with TID = {Database.TID}</h2>"
 
 @app.route("/request_truck", methods=["POST"])
 def request_truck():
@@ -132,7 +138,7 @@ def request_truck():
 
 @app.route("/add_supply_to", methods=["POST"])
 def add_supply_to(place, supply_num):
-    place += supply_num
+    place["supply"] += supply_num
     return f"<h2>Supply {place.supply} {supply_num}</h2>"
 
 # Request supply route
@@ -148,6 +154,11 @@ def request_supply():
     if not user or not shelter:
         return "<h2>User or Shelter not found!</h2>"
 
+    now = time.time()
+    if user.get("last_request_time") and now - user["last_request_time"] < 30:
+        wait_time = 30 - (now - user["last_request_time"])
+        return f"<h2>User {UID} must wait {int(wait_time)} more seconds before requesting again.</h2>"
+
     if user["requestLimit"] <= 0:
         return "<h2>User has no requests left!</h2>"
     if shelter["supply"] <= 0:
@@ -155,7 +166,8 @@ def request_supply():
 
     user["requestLimit"] -= 1
     shelter["supply"] -= 1
-    return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left.</h2>"
+    user["last_request_time"] = now
+    return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left. The time between the user asked for supply is {user["last_time_request"]}</h2>"
 
 for i in range(5):
     shelter = {
@@ -164,7 +176,7 @@ for i in range(5):
         "address_x": Random_x(),
         "address_y": Random_y(),
         "address": f"Shelter {Database.ShID}",
-        "supply": 50
+        "supply": 50,
     }
     Database.shelters.append(shelter)
     Database.ShID += 1
