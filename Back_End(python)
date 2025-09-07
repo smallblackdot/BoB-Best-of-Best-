@@ -1,23 +1,15 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import random
+
 app = Flask(__name__)
 CORS(app)
+
 def Random_x():
-    num_x = random.randint(1,100)
-    return num_x
+    return random.randint(1,100)
 
 def Random_y():
-    num_y = random.randint(1,100)
-    return num_y
-# Homepage and about page
-@app.route("/")
-def home():
-    return "<h1>Welcome to the Disaster Relief Website</h1>"
-
-@app.route("/about")
-def about():
-    return "<h2>About</h2><p>This site helps track shelters and donations.</p>"
+    return random.randint(1,100)
 
 # Simple "database"
 class Database:
@@ -25,6 +17,38 @@ class Database:
     users = []
     ShID = 1
     shelters = []
+
+# 初始化 100 个随机用户，替代原来的 add_user() 调用
+for i in range(100):
+    user = {
+        "UID": Database.UID,
+        "name": f"User{Database.UID}",
+        "phoneNumber": "N/A",
+        "email": "N/A",
+        "address_x": Random_x(),
+        "address_y": Random_y(),
+        "requestLimit": 5
+    }
+    Database.users.append(user)
+    Database.UID += 1
+
+# 返回所有灾民（用户）数据，JSON 格式
+@app.route("/api/users")
+def api_users():
+    return jsonify(Database.users)
+
+# 返回所有 shelter 数据，JSON 格式
+@app.route("/api/shelters")
+def api_shelters():
+    return jsonify(Database.shelters)
+
+@app.route("/")
+def home():
+    return "<h1>Welcome to the Disaster Relief Website</h1>"
+
+@app.route("/about")
+def about():
+    return "<h2>About</h2><p>This site helps track shelters and donations.</p>"
 
 # Add user route
 @app.route("/add_user", methods=["POST"])
@@ -34,7 +58,6 @@ def add_user():
     email = request.form.get("email")
     address_x = Random_x()
     address_y = Random_y()
-
     request_limit = 5
 
     user = {
@@ -56,10 +79,14 @@ def add_shelter():
     num_of_shelters = request.form.get("num_of_shelters")
     address_shelter = request.form.get("address_shelter")
     shelter_supply = 50
+    address_x = Random_x()
+    address_y = Random_y()
 
     shelter = {
         "ShID": Database.ShID,
         "num_of_shelters": num_of_shelters,
+        "address_x": address_x,
+        "address_y": address_y,
         "address": address_shelter,
         "supply": shelter_supply
     }
@@ -107,9 +134,17 @@ def show_shelters():
     html += "</ul>"
     return html
 
-for i in range(100):
-    add_user()
-    i += 1
+for i in range(5):
+    shelter = {
+        "ShID": Database.ShID,
+        "num_of_shelters": 1,
+        "address_x": Random_x(),
+        "address_y": Random_y(),
+        "address": f"Shelter {Database.ShID}",
+        "supply": 50
+    }
+    Database.shelters.append(shelter)
+    Database.ShID += 1
 
 if __name__ == "__main__":
     app.run(debug=True)

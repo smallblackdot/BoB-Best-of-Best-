@@ -2,13 +2,13 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>灾民和 Shelter 测试</title>
+  <title>灾民和 Shelter 显示</title>
   <style>
     #map {
       position: relative;
       width: 800px;
       height: 500px;
-      background: #eef;  /* 假地图背景 */
+      background: #eef;
       border: 1px solid black;
       margin: 20px auto;
     }
@@ -19,12 +19,8 @@
       position: absolute;
       cursor: pointer;
     }
-    .victim {
-      background-color: red;
-    }
-    .shelter {
-      background-color: blue;
-    }
+    .victim { background-color: red; }
+    .shelter { background-color: blue; }
     .tooltip {
       position: absolute;
       padding: 5px 10px;
@@ -37,7 +33,7 @@
   </style>
 </head>
 <body>
-  <h2 style="text-align:center;">灾民和 Shelter 随机点测试</h2>
+  <h2 style="text-align:center;">灾民和 Shelter 显示（API 数据）</h2>
   <div id="map"></div>
   <div id="tooltip" class="tooltip"></div>
 
@@ -45,61 +41,49 @@
     const map = document.getElementById("map");
     const tooltip = document.getElementById("tooltip");
 
-    // 随机生成 50 个灾民点
-    const victims = Array.from({ length: 50 }, (_, i) => ({
-      id: i + 1,
-      x: Math.floor(Math.random() * 780), // 留边距
-      y: Math.floor(Math.random() * 480),
-      need: ["水", "食物", "药品"][Math.floor(Math.random() * 3)],
-      status: ["Waiting", "Received"][Math.floor(Math.random() * 2)]
-    }));
+    // 获取灾民数据
+    fetch("http://127.0.0.1:5000/api/users")
+      .then(res => res.json())
+      .then(victims => {
+        victims.forEach(v => {
+          const dot = document.createElement("div");
+          dot.className = "dot victim";
+          // Flask 里随机生成的坐标是 1-100，缩放到地图大小
+          dot.style.left = (v.address_x / 100 * 780) + "px";
+          dot.style.top = (v.address_y / 100 * 480) + "px";
 
-    // 生成 shelter 点（固定位置）
-    const shelters = [
-      { id: 1, x: 400, y: 250, name: "Central Shelter", capacity: 200, current: 120 }
-    ];
-
-    // 渲染灾民点
-    victims.forEach(v => {
-      const dot = document.createElement("div");
-      dot.className = "dot victim";
-      dot.style.left = v.x + "px";
-      dot.style.top = v.y + "px";
-
-      dot.addEventListener("mouseenter", () => {
-        tooltip.innerHTML = `灾民ID: ${v.id}<br>需求: ${v.need}<br>状态: ${v.status}`;
-        tooltip.style.left = (v.x + 15) + "px";
-        tooltip.style.top = (v.y - 10) + "px";
-        tooltip.style.display = "block";
+          dot.addEventListener("mouseenter", () => {
+            tooltip.innerHTML = `灾民ID: ${v.UID}<br>名字: ${v.name}<br>请求剩余: ${v.requestLimit}`;
+            tooltip.style.left = (v.address_x / 100 * 780 + 15) + "px";
+            tooltip.style.top = (v.address_y / 100 * 480 - 10) + "px";
+            tooltip.style.display = "block";
+          });
+          dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+          map.appendChild(dot);
+        });
       });
 
-      dot.addEventListener("mouseleave", () => {
-        tooltip.style.display = "none";
+    // 获取 shelter 数据
+    fetch("http://127.0.0.1:5000/api/shelters")
+      .then(res => res.json())
+      .then(shelters => {
+        shelters.forEach(s => {
+          const dot = document.createElement("div");
+          dot.className = "dot shelter";
+          // shelter 坐标必定存在，缩放到地图大小
+          dot.style.left = (s.address_x / 100 * 780) + "px";
+          dot.style.top = (s.address_y / 100 * 480) + "px";
+
+          dot.addEventListener("mouseenter", () => {
+            tooltip.innerHTML = `Shelter: ${s.address || "未命名"}<br>供给量: ${s.supply}`;
+            tooltip.style.left = (s.address_x / 100 * 780 + 15) + "px";
+            tooltip.style.top = (s.address_y / 100 * 480 - 10) + "px";
+            tooltip.style.display = "block";
+          });
+          dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+          map.appendChild(dot);
+        });
       });
-
-      map.appendChild(dot);
-    });
-
-    // 渲染 shelter 点
-    shelters.forEach(s => {
-      const dot = document.createElement("div");
-      dot.className = "dot shelter";
-      dot.style.left = s.x + "px";
-      dot.style.top = s.y + "px";
-
-      dot.addEventListener("mouseenter", () => {
-        tooltip.innerHTML = `Shelter: ${s.name}<br>容量: ${s.capacity}<br>现有人数: ${s.current}`;
-        tooltip.style.left = (s.x + 15) + "px";
-        tooltip.style.top = (s.y - 10) + "px";
-        tooltip.style.display = "block";
-      });
-
-      dot.addEventListener("mouseleave", () => {
-        tooltip.style.display = "none";
-      });
-
-      map.appendChild(dot);
-    });
   </script>
 </body>
 </html>
