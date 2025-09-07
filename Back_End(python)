@@ -261,3 +261,236 @@ for i in range(5):
 
 if __name__ == "__main__":
     app.run(debug=True)
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import random
+import time
+
+app = Flask(__name__)
+CORS(app)
+
+def Shelter_distribution():
+    import random
+    import numpy as np
+
+    population = 100
+    # 1. randomly locate 50 victims in range of [0,100]
+    points = [(random.randint(0, 100), random.randint(0, 100)) for _ in range(population)]
+
+    k = int(population / 50)
+
+    points = np.array(points)
+    n = len(points)
+
+    # Step 1: randomly choose a victim to be shelter location.
+    centroids = [points[random.randint(0, n - 1)]]
+
+    # Step 2-4: choose location for otehr shelter
+    for _ in range(1, k):
+        distances = np.array([min(np.linalg.norm(p - c) ** 2 for c in centroids) for p in points])
+        probabilities = distances / distances.sum()
+        chosen_idx = np.random.choice(range(n), p=probabilities)
+        centroids.append(points[chosen_idx])
+
+    for _ in range(10):
+        clusters = [[] for _ in range(k)]
+        # distribute victims into closest shelter (cluster)
+        for p in points:
+            # 计算这个人和所有 shelter 的距离，找最小的
+            distances = [((p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2) ** 0.5 for c in centroids]
+            nearest = distances.index(min(distances))  # 找到最近的 shelter 的编号
+            clusters[nearest].append(p)  # 把这个人放到对应 shelter 组里
+
+        # update the location of shetler
+        new_centroids = []
+        for group in clusters:
+            if group:  # 如果组不为空
+                avg_x = sum(p[0] for p in group) / len(group)
+                avg_y = sum(p[1] for p in group) / len(group)
+                new_centroids.append((avg_x, avg_y))
+            else:
+                # 如果某个 shelter 没有人，就随机放一个点
+                new_centroids.append(random.choice(points))
+
+        centroids = new_centroids  # 更新新的 shelter 位置
+    return centroids
+
+def Random_x():
+    return random.randint(1,100)
+
+def Random_y():
+    return random.randint(1,100)
+
+# Simple "database"
+class Database:
+    UID = 1
+    users = []
+    ShID = 1
+    shelters = []
+    RID = 1 #repository ID
+    repository = []
+    repository_address_x = Random_x()
+    repository_address_y = Random_y()
+    TID = 1
+    truck = []
+
+# 初始化 100 个随机用户，替代原来的 add_user() 调用
+for i in range(100):
+    user = {
+        "UID": Database.UID,
+        "name": f"User{Database.UID}",
+        "phoneNumber": "N/A",
+        "email": "N/A",
+        "address_x": Random_x(),
+        "address_y": Random_y(),
+        "requestLimit": 5,
+        "last_request_time": 0,
+    }
+    Database.users.append(user)
+    Database.UID += 1
+
+# 返回所有灾民（用户）数据，JSON 格式
+@app.route("/api/users")
+def api_users():
+    return jsonify(Database.users)
+
+# 返回所有 shelter 数据，JSON 格式
+@app.route("/api/shelters")
+def api_shelters():
+    return jsonify(Database.shelters)
+
+# Add user route
+@app.route("/add_user", methods=["POST"])
+def add_user():
+    name = request.form.get("name")
+    phoneNumber = request.form.get("phoneNumber")
+    email = request.form.get("email")
+    address_x = Random_x()
+    address_y = Random_y()
+    request_limit = 5
+    last_time_requst = None
+
+    user = {
+        "UID": Database.UID,
+        "name": name,
+        "phoneNumber": phoneNumber,
+        "email": email,
+        "address_x": address_x,
+        "address_y": address_y,
+        "requestLimit": request_limit,
+        "last_time_requst": 0,
+    }
+    Database.users.append(user)
+    Database.UID += 1
+    return f"<h2>User {name} added with UID = {user['UID']}</h2>"
+
+# Add shelter route
+@app.route("/add_shelter", methods=["POST"])
+def add_shelter():
+    num_of_shelters = request.form.get("num_of_shelters")
+    address_shelter = request.form.get("address_shelter")
+    shelter_supply = 50
+
+    centroids = Shelter_distribution()
+    for center in centroids:
+        shelter = {
+            "ShID": Database.ShID,
+            "num_of_shelters": 1,
+            "address_x": int(center[0]),
+            "address_y": int(center[1]),
+            "address": f"Shelter {Database.ShID}",
+            "supply": 50,
+        }
+        Database.shelters.append(shelter)
+        Database.ShID += 1
+    Database.shelters.append(shelter)
+    Database.ShID += 1
+    return f"<h2>Shelter {shelter['ShID']} added at {address_shelter}</h2>"
+
+@app.route("/add_repository", methods=["POST"])
+def add_repository():
+    repository_name = request.form.get("repository_name")
+    address_repository = request.form.get("address_repository")
+    repository_supply = 100000
+
+    repository = {
+        "repository_name": repository_name,
+        "address_repository": address_repository,
+        "address_x": Database.repository_address_x,
+        "address_y": Database.repository_address_y,
+    }
+    Database.repository.append(repository)
+    return f"<h2>Repository {Database.RID} added at {address_repository}</h2>"
+
+@app.route("/add_truck", methods=["POST"])
+def add_Truck():
+
+    num_of_trucks = request.form.get("num_of_trucks")
+    strating_point_x = Database.repository_address_x
+    strating_point_y = Database.repository_address_y
+    end_point = request.form.get("end_point")
+    truck_supply = 25
+
+    truck = {
+        "num_of_trucks": num_of_trucks,
+        "strating_point_x": strating_point_x,
+        "strating_point_y": strating_point_y,
+        "end_point": end_point,
+        "truck_supply": truck_supply,
+    }
+    Database.repository.append(truck)
+    return f"<<h2>truck added with TID = {Database.TID}</h2>"
+
+@app.route("/request_truck", methods=["POST"])
+def request_truck():
+    add_Truck()
+    add_supply_to(add_shelter.supply, add_Truck.truck_supply)
+
+
+@app.route("/add_supply_to", methods=["POST"])
+def add_supply_to(place, supply_num):
+    place["supply"] += supply_num
+    return f"<h2>Supply {place.supply} {supply_num}</h2>"
+
+# Request supply route
+@app.route("/request_supply", methods=["POST"])
+def request_supply():
+    UID = int(request.form.get("UID"))
+    ShID = int(request.form.get("ShID"))
+
+    # Find user
+    user = next((u for u in Database.users if u["UID"] == UID), None)
+    shelter = next((s for s in Database.shelters if s["ShID"] == ShID), None)
+
+    if not user or not shelter:
+        return "<h2>User or Shelter not found!</h2>"
+
+    now = time.time()
+    if user.get("last_request_time") and now - user["last_request_time"] < 30:
+        wait_time = 30 - (now - user["last_request_time"])
+        return f"<h2>User {UID} must wait {int(wait_time)} more seconds before requesting again.</h2>"
+
+    if user["requestLimit"] <= 0:
+        return "<h2>User has no requests left!</h2>"
+    if shelter["supply"] <= 0:
+        return "<h2>Shelter has no supply left!</h2>"
+
+    user["requestLimit"] -= 1
+    shelter["supply"] -= 1
+    user["last_request_time"] = now
+    return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left. The time between the user asked for supply is {user["last_time_request"]}</h2>"
+
+for i in range(5):
+    shelter = {
+        "ShID": Database.ShID,
+        "num_of_shelters": 1,
+        "address_x": Random_x(),
+        "address_y": Random_y(),
+        "address": f"Shelter {Database.ShID}",
+        "supply": 50,
+    }
+    Database.shelters.append(shelter)
+    Database.ShID += 1
+
+if __name__ == "__main__":
+    app.run(debug=True)
