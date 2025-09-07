@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>随机灾民点测试</title>
+  <style>
+    #map {
+      position: relative;
+      width: 600px;
+      height: 400px;
+      background: #eef;
+      border: 1px solid black;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: red;
+      position: absolute;
+      cursor: pointer;
+    }
+    .tooltip {
+      position: absolute;
+      padding: 4px 8px;
+      background: white;
+      border: 1px solid black;
+      border-radius: 4px;
+      display: none;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h2>随机生成 50 个灾民点</h2>
+  <div id="map"></div>
+  <div id="tooltip" class="tooltip"></div>
+
+  <script>
+    const map = document.getElementById("map");
+    const tooltip = document.getElementById("tooltip");
+
+    // 随机生成 50 个点
+    const victims = Array.from({ length: 50 }, (_, i) => ({
+      id: i + 1,
+      x: Math.floor(Math.random() * 580), // 600 - 20 留边距
+      y: Math.floor(Math.random() * 380),
+      info: ["需要水", "需要食物", "需要药品"][Math.floor(Math.random() * 3)]
+    }));
+
+    // 显示点
+    victims.forEach(v => {
+      const dot = document.createElement("div");
+      dot.className = "dot";
+      dot.style.left = v.x + "px";
+      dot.style.top = v.y + "px";
+
+      dot.addEventListener("mouseenter", () => {
+        tooltip.innerHTML = `灾民ID: ${v.id}<br>需求: ${v.info}`;
+        tooltip.style.left = (v.x + 15) + "px";
+        tooltip.style.top = (v.y - 10) + "px";
+        tooltip.style.display = "block";
+      });
+
+      dot.addEventListener("mouseleave", () => {
+        tooltip.style.display = "none";
+      });
+
+      map.appendChild(dot);
+    });
+  </script>
+</body>
+</html>
