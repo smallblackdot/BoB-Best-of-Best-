@@ -184,7 +184,7 @@ def auto_dispatch_request():
     dispatched_trucks = []
 
     for shelter in Database.shelters:
-        threshold = 50
+        threshold = 15
         demand = max(0, threshold - shelter["supply"])
 
         while demand > 0:
