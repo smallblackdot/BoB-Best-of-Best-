@@ -18,6 +18,7 @@ class Database:
     users = []
     ShID = 1
     shelters = []
+    demands = {}
     RID = 1 #repository ID
     repository = []
     repository_address_x = Random_x()
@@ -93,6 +94,7 @@ def add_shelter():
         "supply": shelter_supply
     }
     Database.shelters.append(shelter)
+    Database.demands[shelter["ShID"]] = 0 
     Database.ShID += 1
     return f"<h2>Shelter {shelter['ShID']} added at {address_shelter}</h2>"
 
@@ -111,35 +113,109 @@ def add_repository():
     Database.repository.append(repository)
     return f"<h2>Repository {Database.RID} added at {address_repository}</h2>"
 
+# Add truck route
 @app.route("/add_truck", methods=["POST"])
-def add_Truck():
+def add_truck():
+    num_of_trucks = int(request.form.get("num_of_trucks", 1))
+    end_point = request.form.get("end_point", "unknown")
+    truck_capacity = int(request.form.get("truck_capacity", 25))
 
-    num_of_trucks = request.form.get("num_of_trucks")
-    strating_point_x = Database.repository_address_x
-    strating_point_y = Database.repository_address_y
-    end_point = request.form.get("end_point")
-    truck_supply = 25
+    trucks_added = []
+    for _ in range(num_of_trucks):
+        truck = {
+            "TID": Database.TID,
+            "strating_point_x": Database.repository_address_x,
+            "strating_point_y": Database.repository_address_y,
+            "end_point": end_point,
+            "truck_capacity": truck_capacity,
+            "status": "idle",   # idle / dispatched / delivered
+        }
+        Database.trucks.append(truck)
+        trucks_added.append(truck)
+        Database.TID += 1
 
-    truck = {
-        "num_of_trucks": num_of_trucks,
-        "strating_point_x": strating_point_x,
-        "strating_point_y": strating_point_y,
-        "end_point": end_point,
-        "truck_supply": truck_supply,
-    }
-    Database.repository.append(truck)
-    return f"<<h2>truck added with TID = {Database.TID}</h2>"
+    return jsonify({"message": f"{num_of_trucks} truck(s) added", "trucks": trucks_added})
 
+
+# 内部工具函数（不要写成路由）
+def add_supply_to(shelter, supply_num):
+    shelter["supply"] += supply_num
+
+
+# 手动派车请求
 @app.route("/request_truck", methods=["POST"])
 def request_truck():
-    add_Truck()
-    add_supply_to(add_shelter.supply, add_Truck.truck_supply)
+    ShID = int(request.form.get("ShID"))
+    truck_capacity = int(request.form.get("truck_capacity", 25))
 
+    # 找 shelter
+    shelter = next((s for s in Database.shelters if s["ShID"] == ShID), None)
+    if not shelter:
+        return "<h2>Shelter not found!</h2>"
 
-@app.route("/add_supply_to", methods=["POST"])
-def add_supply_to(place, supply_num):
-    place["supply"] += supply_num
-    return f"<h2>Supply {place.supply} {supply_num}</h2>"
+    # 找空闲的 truck
+    truck = next((t for t in Database.trucks if t["status"] == "idle"), None)
+    if not truck:
+        return "<h2>No idle trucks available!</h2>"
+
+    # 从 repository 运送物资
+    repo = next((r for r in Database.repository), None)
+    if not repo:
+        return "<h2>No repository found!</h2>"
+
+    move_amount = min(truck_capacity, 50)  # 假设一次最多带50
+    add_supply_to(shelter, move_amount)
+
+    truck["status"] = "dispatched"
+    truck["to_shelter"] = ShID
+    truck["truck_supply"] = move_amount
+
+    return jsonify({
+        "message": f"Truck {truck['TID']} dispatched to Shelter {ShID}",
+        "supply_moved": move_amount,
+        "shelter_supply_now": shelter["supply"]
+    })
+
+@app.route("/auto_dispatch_request", methods=["POST"])
+def auto_dispatch_request():
+    truck_capacity = int(request.form.get("truck_capacity", 25))
+    supply_type = request.form.get("supply_type", "general")
+
+    dispatched_trucks = []
+
+    for shelter in Database.shelters:
+        threshold = 50
+        demand = max(0, threshold - shelter["supply"])
+
+        while demand > 0:
+            repo = next((r for r in Database.repository if r.get("supply", 0) > 0), None)
+            if not repo:
+                return "<h2>No repositories have enough supply!</h2>"
+
+            move_amount = min(truck_capacity, repo["supply"], demand)
+
+            truck = {
+                "TID": Database.TID,
+                "from_repository": repo.get("RID", 1),
+                "to_shelter": shelter["ShID"],
+                "truck_supply": move_amount,
+                "supply_type": supply_type
+            }
+            Database.truck.append(truck)
+            Database.TID += 1
+
+            repo["supply"] -= move_amount
+            shelter["supply"] += move_amount
+
+            dispatched_trucks.append(truck)
+
+            demand = max(0, threshold - shelter["supply"])
+
+    return jsonify({
+        "message": f"Auto dispatch complete! {len(dispatched_trucks)} trucks dispatched for {supply_type}.",
+        "trucks": dispatched_trucks
+    })
+
 
 # Request supply route
 @app.route("/request_supply", methods=["POST"])
@@ -165,8 +241,10 @@ def request_supply():
         return "<h2>Shelter has no supply left!</h2>"
 
     user["requestLimit"] -= 1
-    shelter["supply"] -= 1
+    shelter["supply"] -= 1 
+    Database.demands[ShID] += 1   # 增加需求
     user["last_request_time"] = now
+
     return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left. The time between the user asked for supply is {user["last_time_request"]}</h2>"
 
 for i in range(5):
