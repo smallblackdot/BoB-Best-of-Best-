@@ -1,0 +1,115 @@
+from flask import Flask, request
+from flask_cors import CORS
+import random
+app = Flask(__name__)
+CORS(app)
+def Random_x():
+    num_x = random.randint(1,100)
+    return num_x
+
+def Random_y():
+    num_y = random.randint(1,100)
+    return num_y
+# Homepage and about page
+@app.route("/")
+def home():
+    return "<h1>Welcome to the Disaster Relief Website</h1>"
+
+@app.route("/about")
+def about():
+    return "<h2>About</h2><p>This site helps track shelters and donations.</p>"
+
+# Simple "database"
+class Database:
+    UID = 1
+    users = []
+    ShID = 1
+    shelters = []
+
+# Add user route
+@app.route("/add_user", methods=["POST"])
+def add_user():
+    name = request.form.get("name")
+    phoneNumber = request.form.get("phoneNumber")
+    email = request.form.get("email")
+    address_x = Random_x()
+    address_y = Random_y()
+
+    request_limit = 5
+
+    user = {
+        "UID": Database.UID,
+        "name": name,
+        "phoneNumber": phoneNumber,
+        "email": email,
+        "address_x": address_x,
+        "address_y": address_y,
+        "requestLimit": request_limit
+    }
+    Database.users.append(user)
+    Database.UID += 1
+    return f"<h2>User {name} added with UID = {user['UID']}</h2>"
+
+# Add shelter route
+@app.route("/add_shelter", methods=["POST"])
+def add_shelter():
+    num_of_shelters = request.form.get("num_of_shelters")
+    address_shelter = request.form.get("address_shelter")
+    shelter_supply = 50
+
+    shelter = {
+        "ShID": Database.ShID,
+        "num_of_shelters": num_of_shelters,
+        "address": address_shelter,
+        "supply": shelter_supply
+    }
+    Database.shelters.append(shelter)
+    Database.ShID += 1
+    return f"<h2>Shelter {shelter['ShID']} added at {address_shelter}</h2>"
+
+# Request supply route
+@app.route("/request_supply", methods=["POST"])
+def request_supply():
+    UID = int(request.form.get("UID"))
+    ShID = int(request.form.get("ShID"))
+
+    # Find user
+    user = next((u for u in Database.users if u["UID"] == UID), None)
+    shelter = next((s for s in Database.shelters if s["ShID"] == ShID), None)
+
+    if not user or not shelter:
+        return "<h2>User or Shelter not found!</h2>"
+
+    if user["requestLimit"] <= 0:
+        return "<h2>User has no requests left!</h2>"
+    if shelter["supply"] <= 0:
+        return "<h2>Shelter has no supply left!</h2>"
+
+    user["requestLimit"] -= 1
+    shelter["supply"] -= 1
+    return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left.</h2>"
+
+# Show all users
+@app.route("/users")
+def show_users():
+    html = "<h1>All Users</h1><ul>"
+    for u in Database.users:
+        html += f"<li>{u['UID']}: {u['name']} - Requests left: {u['requestLimit']}</li>"
+    html += "</ul>"
+    return html
+
+# Show all shelters
+@app.route("/shelters")
+def show_shelters():
+    html = "<h1>All Shelters</h1><ul>"
+    for s in Database.shelters:
+        html += f"<li>{s['ShID']}: {s['address']} - Supply left: {s['supply']}</li>"
+    html += "</ul>"
+    return html
+
+for i in range(100):
+    add_user()
+    i += 1
+
+if __name__ == "__main__":
+    app.run(debug=True)
