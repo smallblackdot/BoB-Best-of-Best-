@@ -1,2 +1,2 @@
-# BoB-Best-of-Best-
+# BoB-Best-of-Best
 We are the best!
