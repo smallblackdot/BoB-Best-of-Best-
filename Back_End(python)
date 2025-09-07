@@ -1,46 +1,238 @@
-from flask import Flask, request, jsonify
+# from flask import Flask, request, jsonify
+# from flask_cors import CORS
+# import random
+#
+# app = Flask(__name__)
+# CORS(app)
+#
+# def Random_x():
+#     return random.randint(1,100)
+#
+# def Random_y():
+#     return random.randint(1,100)
+#
+# # Simple "database"
+# class Database:
+#     UID = 1
+#     users = []
+#     ShID = 1
+#     shelters = []
+#     RID = 1 #repository ID
+#     repository = []
+#     repository_address_x = Random_x()
+#     repository_address_y = Random_y()
+#     TID = 1
+#     truck = []
+#
+# # 初始化 100 个随机用户，替代原来的 add_user() 调用
+# for i in range(100):
+#     user = {
+#         "UID": Database.UID,
+#         "name": f"User{Database.UID}",
+#         "phoneNumber": "N/A",
+#         "email": "N/A",
+#         "address_x": Random_x(),
+#         "address_y": Random_y(),
+#         "requestLimit": 5
+#     }
+#     Database.users.append(user)
+#     Database.UID += 1
+#
+# # 返回所有灾民（用户）数据，JSON 格式
+# @app.route("/api/users")
+# def api_users():
+#     return jsonify(Database.users)
+#
+# # 返回所有 shelter 数据，JSON 格式
+# @app.route("/api/shelters")
+# def api_shelters():
+#     return jsonify(Database.shelters)
+#
+# @app.route("/")
+# def home():
+#     return "<h1>Welcome to the Disaster Relief Website</h1>"
+#
+# @app.route("/about")
+# def about():
+#     return "<h2>About</h2><p>This site helps track shelters and donations.</p>"
+#
+# # Add user route
+# @app.route("/add_user", methods=["POST"])
+# def add_user():
+#     name = request.form.get("name")
+#     phoneNumber = request.form.get("phoneNumber")
+#     email = request.form.get("email")
+#     address_x = Random_x()
+#     address_y = Random_y()
+#     request_limit = 5
+#
+#     user = {
+#         "UID": Database.UID,
+#         "name": name,
+#         "phoneNumber": phoneNumber,
+#         "email": email,
+#         "address_x": address_x,
+#         "address_y": address_y,
+#         "requestLimit": request_limit
+#     }
+#     Database.users.append(user)
+#     Database.UID += 1
+#     return f"<h2>User {name} added with UID = {user['UID']}</h2>"
+#
+# # Add shelter route
+# @app.route("/add_shelter", methods=["POST"])
+# def add_shelter():
+#     num_of_shelters = request.form.get("num_of_shelters")
+#     address_shelter = request.form.get("address_shelter")
+#     shelter_supply = 50
+#     address_x = Random_x()
+#     address_y = Random_y()
+#
+#     shelter = {
+#         "ShID": Database.ShID,
+#         "num_of_shelters": num_of_shelters,
+#         "address_x": address_x,
+#         "address_y": address_y,
+#         "address": address_shelter,
+#         "supply": shelter_supply
+#     }
+#     Database.shelters.append(shelter)
+#     Database.ShID += 1
+#     return f"<h2>Shelter {shelter['ShID']} added at {address_shelter}</h2>"
+#
+# @app.route("/repository", methods=["POST"])
+# def add_repository():
+#     repository_name = request.form.get("repository_name")
+#     address_repository = request.form.get("address_repository")
+#     repository_supply = 100000
+#
+#     repository = {
+#         "repository_name": repository_name,
+#         "address_repository": address_repository,
+#         "address_x": Database.repository_address_x,
+#         "address_y": Database.repository_address_y,
+#     }
+#     Database.repository.append(repository)
+#     return f"<h2>Repository {repository["RID"]} added at {address_repository}</h2>"
+#
+# @app.route("/truck", methods=["POST"])
+# def add_Truck():
+#
+#     num_of_trucks = request.form.get("num_of_trucks")
+#     strating_point_x = Database.repository_address_x
+#     strating_point_y = Database.repository_address_y
+#     end_point = request.form.get("end_point")
+#     truck_supply = 25
+#
+#     truck = {
+#         "num_of_trucks": num_of_trucks,
+#         "strating_point_x": strating_point_x,
+#         "strating_point_y": strating_point_y,
+#         "end_point": end_point,
+#         "truck_supply": truck_supply,
+#     }
+#
+# @app.route("/request_supply", methods=["POST"])
+# def request_truck():
+#     add_Truck()
+#     add_supply_to(add_shelter.supply, add_Truck.truck_supply)
+#
+#
+# @app.route("/add_supply", methods=["POST"])
+# def add_supply_to(place, supply_num):
+#     place += supply_num
+#     return f"<h2>Supply {place.supply} {supply_num}</h2>"
+#
+# # Request supply route
+# @app.route("/request_supply", methods=["POST"])
+# def request_supply():
+#     UID = int(request.form.get("UID"))
+#     ShID = int(request.form.get("ShID"))
+#
+#     # Find user
+#     user = next((u for u in Database.users if u["UID"] == UID), None)
+#     shelter = next((s for s in Database.shelters if s["ShID"] == ShID), None)
+#
+#     if not user or not shelter:
+#         return "<h2>User or Shelter not found!</h2>"
+#
+#     if user["requestLimit"] <= 0:
+#         return "<h2>User has no requests left!</h2>"
+#     if shelter["supply"] <= 0:
+#         return "<h2>Shelter has no supply left!</h2>"
+#
+#     user["requestLimit"] -= 1
+#     shelter["supply"] -= 1
+#     return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left.</h2>"
+#
+# # Show all users
+# @app.route("/users")
+# def show_users():
+#     html = "<h1>All Users</h1><ul>"
+#     for u in Database.users:
+#         html += f"<li>{u['UID']}: {u['name']} - Requests left: {u['requestLimit']}</li>"
+#     html += "</ul>"
+#     return html
+#
+# # Show all shelters
+# @app.route("/shelters")
+# def show_shelters():
+#     html = "<h1>All Shelters</h1><ul>"
+#     for s in Database.shelters:
+#         html += f"<li>{s['ShID']}: {s['address']} - Supply left: {s['supply']}</li>"
+#     html += "</ul>"
+#     return html
+#
+# for i in range(5):
+#     shelter = {
+#         "ShID": Database.ShID,
+#         "num_of_shelters": 1,
+#         "address_x": Random_x(),
+#         "address_y": Random_y(),
+#         "address": f"Shelter {Database.ShID}",
+#         "supply": 50
+#     }
+#     Database.shelters.append(shelter)
+#     Database.ShID += 1
+#
+# if __name__ == "__main__":
+#     app.run(debug=True)
+
+from flask import Flask, request
 from flask_cors import CORS
 import random
 
 app = Flask(__name__)
 CORS(app)
 
+# Random coordinate generators
 def Random_x():
-    return random.randint(1,100)
+    return random.randint(1, 100)
 
 def Random_y():
-    return random.randint(1,100)
+    return random.randint(1, 100)
 
-# Simple "database"
+
+# ==============================
+# Fake Database
+# ==============================
 class Database:
     UID = 1
     users = []
+
     ShID = 1
     shelters = []
 
-# 初始化 100 个随机用户，替代原来的 add_user() 调用
-for i in range(100):
-    user = {
-        "UID": Database.UID,
-        "name": f"User{Database.UID}",
-        "phoneNumber": "N/A",
-        "email": "N/A",
-        "address_x": Random_x(),
-        "address_y": Random_y(),
-        "requestLimit": 5
-    }
-    Database.users.append(user)
-    Database.UID += 1
+    RID = 1
+    repositories = []
 
-# 返回所有灾民（用户）数据，JSON 格式
-@app.route("/api/users")
-def api_users():
-    return jsonify(Database.users)
+    TID = 1
+    trucks = []
 
-# 返回所有 shelter 数据，JSON 格式
-@app.route("/api/shelters")
-def api_shelters():
-    return jsonify(Database.shelters)
+
+# ==============================
+# Routes
+# ==============================
 
 @app.route("/")
 def home():
@@ -50,73 +242,27 @@ def home():
 def about():
     return "<h2>About</h2><p>This site helps track shelters and donations.</p>"
 
-# Add user route
+
+# ----- USERS -----
 @app.route("/add_user", methods=["POST"])
 def add_user():
     name = request.form.get("name")
     phoneNumber = request.form.get("phoneNumber")
     email = request.form.get("email")
-    address_x = Random_x()
-    address_y = Random_y()
-    request_limit = 5
 
     user = {
         "UID": Database.UID,
         "name": name,
         "phoneNumber": phoneNumber,
         "email": email,
-        "address_x": address_x,
-        "address_y": address_y,
-        "requestLimit": request_limit
+        "address_x": Random_x(),
+        "address_y": Random_y(),
+        "requestLimit": 5
     }
     Database.users.append(user)
     Database.UID += 1
     return f"<h2>User {name} added with UID = {user['UID']}</h2>"
 
-# Add shelter route
-@app.route("/add_shelter", methods=["POST"])
-def add_shelter():
-    num_of_shelters = request.form.get("num_of_shelters")
-    address_shelter = request.form.get("address_shelter")
-    shelter_supply = 50
-    address_x = Random_x()
-    address_y = Random_y()
-
-    shelter = {
-        "ShID": Database.ShID,
-        "num_of_shelters": num_of_shelters,
-        "address_x": address_x,
-        "address_y": address_y,
-        "address": address_shelter,
-        "supply": shelter_supply
-    }
-    Database.shelters.append(shelter)
-    Database.ShID += 1
-    return f"<h2>Shelter {shelter['ShID']} added at {address_shelter}</h2>"
-
-# Request supply route
-@app.route("/request_supply", methods=["POST"])
-def request_supply():
-    UID = int(request.form.get("UID"))
-    ShID = int(request.form.get("ShID"))
-
-    # Find user
-    user = next((u for u in Database.users if u["UID"] == UID), None)
-    shelter = next((s for s in Database.shelters if s["ShID"] == ShID), None)
-
-    if not user or not shelter:
-        return "<h2>User or Shelter not found!</h2>"
-
-    if user["requestLimit"] <= 0:
-        return "<h2>User has no requests left!</h2>"
-    if shelter["supply"] <= 0:
-        return "<h2>Shelter has no supply left!</h2>"
-
-    user["requestLimit"] -= 1
-    shelter["supply"] -= 1
-    return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left.</h2>"
-
-# Show all users
 @app.route("/users")
 def show_users():
     html = "<h1>All Users</h1><ul>"
@@ -125,7 +271,21 @@ def show_users():
     html += "</ul>"
     return html
 
-# Show all shelters
+
+# ----- SHELTERS -----
+@app.route("/add_shelter", methods=["POST"])
+def add_shelter():
+    address_shelter = request.form.get("address_shelter")
+
+    shelter = {
+        "ShID": Database.ShID,
+        "address": address_shelter,
+        "supply": 50
+    }
+    Database.shelters.append(shelter)
+    Database.ShID += 1
+    return f"<h2>Shelter {shelter['ShID']} added at {address_shelter}</h2>"
+
 @app.route("/shelters")
 def show_shelters():
     html = "<h1>All Shelters</h1><ul>"
@@ -134,17 +294,72 @@ def show_shelters():
     html += "</ul>"
     return html
 
-for i in range(5):
-    shelter = {
-        "ShID": Database.ShID,
-        "num_of_shelters": 1,
-        "address_x": Random_x(),
-        "address_y": Random_y(),
-        "address": f"Shelter {Database.ShID}",
-        "supply": 50
-    }
-    Database.shelters.append(shelter)
-    Database.ShID += 1
 
+# ----- REPOSITORIES -----
+@app.route("/add_repository", methods=["POST"])
+def add_repository():
+    address_repository = request.form.get("address_repository")
+
+    repository = {
+        "RID": Database.RID,
+        "address": address_repository,
+        "supply": 200
+    }
+    Database.repositories.append(repository)
+    Database.RID += 1
+    return f"<h2>Repository {repository['RID']} added at {address_repository}</h2>"
+
+@app.route("/repositories")
+def show_repositories():
+    html = "<h1>All Repositories</h1><ul>"
+    for r in Database.repositories:
+        html += f"<li>{r['RID']}: {r['address']} - Supply left: {r['supply']}</li>"
+    html += "</ul>"
+    return html
+
+
+# ----- TRUCKS -----
+@app.route("/request_truck", methods=["POST"])
+def request_truck():
+    RID = int(request.form.get("RID"))
+    ShID = int(request.form.get("ShID"))
+
+    repository = next((r for r in Database.repositories if r["RID"] == RID), None)
+    shelter = next((s for s in Database.shelters if s["ShID"] == ShID), None)
+
+    if not repository or not shelter:
+        return "<h2>Repository or Shelter not found!</h2>"
+
+    if repository["supply"] < 25:
+        return "<h2>Not enough supply in repository!</h2>"
+
+    # Create truck
+    truck = {
+        "TID": Database.TID,
+        "from_repository": repository["RID"],
+        "to_shelter": shelter["ShID"],
+        "truck_supply": 25
+    }
+    Database.trucks.append(truck)
+    Database.TID += 1
+
+    # Move supply
+    repository["supply"] -= 25
+    shelter["supply"] += 25
+
+    return f"<h2>Truck {truck['TID']} delivered 25 supply from Repository {RID} to Shelter {ShID}. Shelter now has {shelter['supply']} supply.</h2>"
+
+@app.route("/trucks")
+def show_trucks():
+    html = "<h1>All Trucks</h1><ul>"
+    for t in Database.trucks:
+        html += f"<li>Truck {t['TID']}: from Repo {t['from_repository']} -> Shelter {t['to_shelter']} (carried {t['truck_supply']})</li>"
+    html += "</ul>"
+    return html
+
+
+# ==============================
+# Main
+# ==============================
 if __name__ == "__main__":
     app.run(debug=True)
