@@ -96,6 +96,12 @@ def api_users():
 def api_shelters():
     return jsonify(Database.shelters)
 
+# 返回所有仓库数据，JSON 格式
+@app.route("/api/repositories")
+def api_repositories():
+    return jsonify(Database.repository)
+
+
 # Add user route
 @app.route("/add_user", methods=["POST"])
 def add_user():
@@ -113,7 +119,6 @@ def add_user():
         "email": email,
         "address_x": address_x,
         "address_y": address_y,
-        "requestLimit": request_limit,
         "last_time_requst": 0,
     }
     Database.users.append(user)
@@ -143,6 +148,21 @@ def add_shelter():
     Database.shelters.append(shelter)
     Database.ShID += 1
     return f"<h2>Shelter {shelter['ShID']} added at {address_shelter}</h2>"
+
+def init_repository():
+    Database.repository.append({
+        "RID": Database.RID,
+        "repository_name": "Main Repo",
+        "address_repository": "Central",
+        "address_x": Database.repository_address_x,
+        "address_y": Database.repository_address_y,
+        "supply": {"general": 100000}
+    })
+    Database.RID += 1
+
+# 调用初始化
+init_repository()
+
 
 @app.route("/add_repository", methods=["POST"])
 def add_repository():
@@ -316,3 +336,4 @@ for i in range(5):
 
 if __name__ == "__main__":
     app.run(debug=True)
+

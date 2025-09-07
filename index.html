@@ -1,140 +1,155 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title> Victims, Shelters and Repositories Display </title>
-  <style>
-    #map {
-      position: relative;
-      width: 800px;
-      height: 500px;
-      background: #eef;
-      border: 1px solid black;
-      margin: 20px auto;
-    }
-    .dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      position: absolute;
-      cursor: pointer;
-    }
-    .victim { background-color: red; }
-    .shelter { background-color: blue; }
-    .repository { background-color: green; }
-    .tooltip {
-      position: absolute;
-      padding: 5px 10px;
-      background: white;
-      border: 1px solid black;
-      border-radius: 4px;
-      display: none;
-      font-size: 12px;
-      pointer-events: none;
-    }
-    svg { position: absolute; top:0; left:0; width:100%; height:100%; }
-  </style>
+<meta charset="utf-8">
+<title>Victims, Shelters and Repositories Display</title>
+<style>
+  #map {
+    position: relative;
+    width: 800px;
+    height: 500px;
+    background: #eef;
+    border: 1px solid black;
+    margin: 20px auto;
+  }
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    position: absolute;
+    cursor: pointer;
+  }
+  .victim { background-color: red; }
+  .shelter { background-color: blue; }
+  .repository { background-color: green; }
+  .tooltip {
+    position: absolute;
+    padding: 5px 10px;
+    background: white;
+    border: 1px solid black;
+    border-radius: 4px;
+    display: none;
+    font-size: 12px;
+    pointer-events: none;
+  }
+  svg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+</style>
 </head>
 <body>
-  <h2 style="text-align:center;"> Victims, Shelters, and Repositories Display</h2>
-  <div id="map"></div>
-  <div id="tooltip" class="tooltip"></div>
+<h2 style="text-align:center;">Victims, Shelters, and Repositories Display</h2>
+<div id="map">
   <svg id="connections"></svg>
+</div>
+<div id="tooltip" class="tooltip"></div>
 
-  <script>
-    const map = document.getElementById("map");
-    const tooltip = document.getElementById("tooltip");
-    const svg = document.getElementById("connections");
+<script>
+const map = document.getElementById("map");
+const tooltip = document.getElementById("tooltip");
+const svg = document.getElementById("connections");
+const DOT_SIZE = 12;
+const DOT_RADIUS = DOT_SIZE / 2;
 
-    // 缩放函数
-    const scaleX = x => x / 100 * 780;
-    const scaleY = y => y / 100 * 480;
+let victims = [];
+let shelters = [];
+let repositories = [];
 
-    let shelters = [];
-    let repositories = [];
+function scaleX(x){ return x / 100 * (map.clientWidth - DOT_SIZE); }
+function scaleY(y){ return y / 100 * (map.clientHeight - DOT_SIZE); }
 
-    // 绘制连线
-    function drawLine(x1, y1, x2, y2) {
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", x1);
-      line.setAttribute("y1", y1);
-      line.setAttribute("x2", x2);
-      line.setAttribute("y2", y2);
-      line.setAttribute("stroke", "orange");
-      line.setAttribute("stroke-width", "2");
-      svg.appendChild(line);
-    }
+function clearMap(){
+  map.querySelectorAll(".dot").forEach(d => d.remove());
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+}
 
-    // 显示灾民
-    fetch("http://127.0.0.1:5000/api/users")
-      .then(res => res.json())
-      .then(victims => {
-        victims.forEach(v => {
-          const dot = document.createElement("div");
-          dot.className = "dot victim";
-          dot.style.left = scaleX(v.address_x) + "px";
-          dot.style.top = scaleY(v.address_y) + "px";
+function drawLine(x1, y1, x2, y2){
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", x1);
+  line.setAttribute("y1", y1);
+  line.setAttribute("x2", x2);
+  line.setAttribute("y2", y2);
+  line.setAttribute("stroke", "orange");
+  line.setAttribute("stroke-width", 2);
+  svg.appendChild(line);
+}
 
-          dot.addEventListener("mouseenter", () => {
-            tooltip.innerHTML = `灾民ID: ${v.UID}<br>名字: ${v.name}<br>请求剩余: ${v.requestLimit}`;
-            tooltip.style.left = scaleX(v.address_x) + 15 + "px";
-            tooltip.style.top = scaleY(v.address_y) - 10 + "px";
-            tooltip.style.display = "block";
-          });
-          dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
-          map.appendChild(dot);
-        });
-      });
+function draw(){
+  clearMap();
 
-    // 显示 shelter
-    fetch("http://127.0.0.1:5000/api/shelters")
-      .then(res => res.json())
-      .then(data => {
-        shelters = data;
-        shelters.forEach(s => {
-          const dot = document.createElement("div");
-          dot.className = "dot shelter";
-          dot.style.left = scaleX(s.address_x) + "px";
-          dot.style.top = scaleY(s.address_y) + "px";
+  // victims
+  victims.forEach(v => {
+    const dot = document.createElement("div");
+    dot.className = "dot victim";
+    dot.style.left = scaleX(v.address_x) + "px";
+    dot.style.top = scaleY(v.address_y) + "px";
+    dot.style.zIndex = 3;
+    dot.addEventListener("mouseenter", () => {
+      tooltip.innerHTML = `灾民ID: ${v.UID}<br>名字: ${v.name}<br>请求剩余: ${v.requestLimit}`;
+      tooltip.style.left = scaleX(v.address_x) + DOT_SIZE + "px";
+      tooltip.style.top = scaleY(v.address_y) - 10 + "px";
+      tooltip.style.display = "block";
+    });
+    dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+    map.appendChild(dot);
+  });
 
-          dot.addEventListener("mouseenter", () => {
-            tooltip.innerHTML = `Shelter: ${s.address || "未命名"}<br>供给量: ${s.supply}`;
-            tooltip.style.left = scaleX(s.address_x) + 15 + "px";
-            tooltip.style.top = scaleY(s.address_y) - 10 + "px";
-            tooltip.style.display = "block";
-          });
-          dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
-          map.appendChild(dot);
-        });
-      });
+  // shelters
+  shelters.forEach(s => {
+    const dot = document.createElement("div");
+    dot.className = "dot shelter";
+    dot.style.left = scaleX(s.address_x) + "px";
+    dot.style.top = scaleY(s.address_y) + "px";
+    dot.style.zIndex = 2;
+    dot.addEventListener("mouseenter", () => {
+      tooltip.innerHTML = `Shelter: ${s.address || "未命名"}<br>供给量: ${s.supply}`;
+      tooltip.style.left = scaleX(s.address_x) + DOT_SIZE + "px";
+      tooltip.style.top = scaleY(s.address_y) - 10 + "px";
+      tooltip.style.display = "block";
+    });
+    dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+    map.appendChild(dot);
+  });
 
-    // 显示仓库
-    fetch("http://127.0.0.1:5000/api/repositories")
-      .then(res => res.json())
-      .then(data => {
-        repositories = data;
-        repositories.forEach(r => {
-          const dot = document.createElement("div");
-          dot.className = "dot repository";
-          dot.style.left = scaleX(r.address_x) + "px";
-          dot.style.top = scaleY(r.address_y) + "px";
+  // repositories + lines
+  repositories.forEach(r => {
+    const dot = document.createElement("div");
+    dot.className = "dot repository";
+    dot.style.left = scaleX(r.address_x) + "px";
+    dot.style.top = scaleY(r.address_y) + "px";
+    dot.style.zIndex = 4;
+    dot.addEventListener("mouseenter", () => {
+      tooltip.innerHTML = `仓库ID: ${r.RID}<br>名称: ${r.repository_name}<br>库存: ${r.supply.general}`;
+      tooltip.style.left = scaleX(r.address_x) + DOT_SIZE + "px";
+      tooltip.style.top = scaleY(r.address_y) - 10 + "px";
+      tooltip.style.display = "block";
+    });
+    dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+    map.appendChild(dot);
 
-          dot.addEventListener("mouseenter", () => {
-            tooltip.innerHTML = `仓库ID: ${r.RID}<br>名称: ${r.repository_name}<br>库存: ${r.supply.general}`;
-            tooltip.style.left = scaleX(r.address_x) + 15 + "px";
-            tooltip.style.top = scaleY(r.address_y) - 10 + "px";
-            tooltip.style.display = "block";
-          });
-          dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
-          map.appendChild(dot);
+    // 画线到 shelters
+    shelters.forEach(s => {
+      drawLine(
+        scaleX(r.address_x) + DOT_RADIUS,
+        scaleY(r.address_y) + DOT_RADIUS,
+        scaleX(s.address_x) + DOT_RADIUS,
+        scaleY(s.address_y) + DOT_RADIUS
+      );
+    });
+  });
+}
 
-          // 绘制仓库到所有 shelter 的连线（假设每个仓库可以配送到所有 shelter）
-          shelters.forEach(s => {
-            drawLine(scaleX(r.address_x)+6, scaleY(r.address_y)+6, scaleX(s.address_x)+6, scaleY(s.address_y)+6);
-          });
-        });
-      });
+function fetchDataAndDraw(){
+  Promise.all([
+    fetch("http://127.0.0.1:5000/api/users").then(r=>r.json()),
+    fetch("http://127.0.0.1:5000/api/shelters").then(r=>r.json()),
+    fetch("http://127.0.0.1:5000/api/repositories").then(r=>r.json())
+  ]).then(([v,s,r])=>{
+    victims = v; shelters = s; repositories = r;
+    draw();
+  }).catch(err => console.error("Fetch error:", err));
+}
 
-  </script>
+fetchDataAndDraw();
+window.addEventListener("resize", draw);
+</script>
 </body>
 </html>

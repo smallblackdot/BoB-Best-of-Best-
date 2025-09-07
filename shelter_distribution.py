@@ -21,7 +21,7 @@ for _ in range(1, k):
     centroids.append(points[chosen_idx])
 
 for _ in range(10): 
-    cluster = [[] for _ in range(k)]
+    clusters = [[] for _ in range(k)]
     # distribute victims into closest shelter (cluster)
     for p in points:
         # 计算这个人和所有 shelter 的距离，找最小的
