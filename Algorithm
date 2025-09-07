@@ -1,0 +1,172 @@
+import flask
+from flask import Flask, render_template, request, redirect, url_for, flash
+import sqlite3
+from datetime import datetime
+import json
+
+app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'
+
+# Database initialization
+def init_db():
+    conn = sqlite3.connect('supply_db.sqlite')
+    c = conn.cursor()
+    
+    # Create tables
+    c.execute('''CREATE TABLE IF NOT EXISTS requests
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 name TEXT NOT NULL,
+                 email TEXT NOT NULL,
+                 phone TEXT NOT NULL,
+                 location TEXT NOT NULL,
+                 disaster_type TEXT NOT NULL,
+                 items_needed TEXT NOT NULL,
+                 quantity INTEGER NOT NULL,
+                 urgency TEXT NOT NULL,
+                 status TEXT DEFAULT 'Pending',
+                 date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS donations
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 name TEXT NOT NULL,
+                 email TEXT NOT NULL,
+                 phone TEXT NOT NULL,
+                 items_donated TEXT NOT NULL,
+                 quantity INTEGER NOT NULL,
+                 pledge_type TEXT NOT NULL,
+                 status TEXT DEFAULT 'Pending',
+                 date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS inventory
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 item_name TEXT NOT NULL,
+                 category TEXT NOT NULL,
+                 quantity_available INTEGER NOT NULL,
+                 quantity_allocated INTEGER DEFAULT 0)''')
+    
+    # Insert some sample inventory items
+    sample_items = [
+        ('Bottled Water', 'Food & Water', 1000, 0),
+        ('Canned Food', 'Food & Water', 500, 0),
+        ('Blankets', 'Shelter & Bedding', 200, 0),
+        ('Tents', 'Shelter & Bedding', 50, 0),
+        ('First Aid Kits', 'Medical Supplies', 100, 0),
+        ('Flashlights', 'Tools & Equipment', 75, 0),
+        ('Generators', 'Tools & Equipment', 10, 0)
+    ]
+    
+    c.executemany('INSERT OR IGNORE INTO inventory (item_name, category, quantity_available) VALUES (?, ?, ?)', 
+                  [(item[0], item[1], item[2]) for item in sample_items])
+    
+    conn.commit()
+    conn.close()
+
+# Homepage
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# Request supplies page
+@app.route('/request_supplies', methods=['GET', 'POST'])
+def request_supplies():
+    if request.method == 'POST':
+        # Get form data
+        name = request.form['name']
+        email = request.form['email']
+        phone = request.form['phone']
+        location = request.form['location']
+        disaster_type = request.form['disaster_type']
+        items_needed = request.form['items_needed']
+        quantity = int(request.form['quantity'])
+        urgency = request.form['urgency']
+        
+        # Save to database
+        conn = sqlite3.connect('supply_db.sqlite')
+        c = conn.cursor()
+        c.execute('INSERT INTO requests (name, email, phone, location, disaster_type, items_needed, quantity, urgency) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                  (name, email, phone, location, disaster_type, items_needed, quantity, urgency))
+        conn.commit()
+        conn.close()
+        
+        flash('Your request has been submitted successfully! We will contact you soon.', 'success')
+        return redirect(url_for('request_supplies'))
+    
+    return render_template('request_supplies.html')
+
+# Donate supplies page
+@app.route('/donate', methods=['GET', 'POST'])
+def donate():
+    if request.method == 'POST':
+        # Get form data
+        name = request.form['name']
+        email = request.form['email']
+        phone = request.form['phone']
+        items_donated = request.form['items_donated']
+        quantity = int(request.form['quantity'])
+        pledge_type = request.form['pledge_type']
+        
+        # Save to database
+        conn = sqlite3.connect('supply_db.sqlite')
+        c = conn.cursor()
+        c.execute('INSERT INTO donations (name, email, phone, items_donated, quantity, pledge_type) VALUES (?, ?, ?, ?, ?, ?)',
+                  (name, email, phone, items_donated, quantity, pledge_type))
+        
+        # If it's an immediate donation, update inventory
+        if pledge_type == 'immediate':
+            c.execute('UPDATE inventory SET quantity_available = quantity_available + ? WHERE item_name = ?',
+                     (quantity, items_donated))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('Thank you for your donation! Your generosity will help those in need.', 'success')
+        return redirect(url_for('donate'))
+    
+    return render_template('donate.html')
+
+# Admin dashboard
+@app.route('/admin')
+def admin():
+    conn = sqlite3.connect('supply_db.sqlite')
+    c = conn.cursor()
+    
+    # Get stats
+    c.execute('SELECT COUNT(*) FROM requests WHERE status="Pending"')
+    pending_requests = c.fetchone()[0]
+    
+    c.execute('SELECT COUNT(*) FROM donations WHERE status="Pending"')
+    pending_donations = c.fetchone()[0]
+    
+    c.execute('SELECT SUM(quantity_available) FROM inventory')
+    total_items = c.fetchone()[0] or 0
+    
+    # Get recent requests
+    c.execute('SELECT * FROM requests ORDER BY date_created DESC LIMIT 5')
+    recent_requests = c.fetchall()
+    
+    # Get recent donations
+    c.execute('SELECT * FROM donations ORDER BY date_created DESC LIMIT 5')
+    recent_donations = c.fetchall()
+    
+    # Get inventory
+    c.execute('SELECT * FROM inventory')
+    inventory = c.fetchall()
+    
+    conn.close()
+    
+    return render_template('admin.html', 
+                         pending_requests=pending_requests,
+                         pending_donations=pending_donations,
+                         total_items=total_items,
+                         recent_requests=recent_requests,
+                         recent_donations=recent_donations,
+                         inventory=inventory)
+
+# About page
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+if __name__ == '__main__':
+    init_db()
+    app.run(debug=True)
