@@ -1,0 +1,17 @@
+Generate random people positions on a 50×50 grid.
+
+Outlier detection:
+
+Compute distance of each person to the geometric median (or mean).
+
+Dismiss top X% farthest people (configurable, e.g., 5–10%).
+
+Shelter placement:
+
+Use K-means clustering with k = num_people // 50.
+
+Cluster people into groups.
+
+For each cluster, compute the geometric median (minimizes average distance) → shelter location.
+
+Output: Final shelter locations + assignments of people.
