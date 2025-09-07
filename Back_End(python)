@@ -137,6 +137,7 @@ def add_shelter():
             "address_y": int(center[1]),
             "address": f"Shelter {Database.ShID}",
             "supply": 50,
+            "demand": 0  # 累积需求
         }
         Database.shelters.append(shelter)
         Database.ShID += 1
@@ -148,16 +149,18 @@ def add_shelter():
 def add_repository():
     repository_name = request.form.get("repository_name")
     address_repository = request.form.get("address_repository")
-    repository_supply = 100000
-
+    # 初始化仓库物资字典
     repository = {
+        "RID": Database.RID,
         "repository_name": repository_name,
         "address_repository": address_repository,
         "address_x": Database.repository_address_x,
         "address_y": Database.repository_address_y,
+        "supply": {"general": 100000}  # 支持多种物资类型
     }
     Database.repository.append(repository)
-    return f"<h2>Repository {Database.RID} added at {address_repository}</h2>"
+    Database.RID += 1
+    return jsonify({"message": f"Repository {repository['RID']} added", "repository": repository})
 
 # Add truck route
 @app.route("/add_truck", methods=["POST"])
@@ -248,7 +251,7 @@ def request_supply():
 
     user["requestLimit"] -= 1
     shelter["supply"] -= 1        # 灾民消耗 shelter 物资
-    Database.demands[ShID] += 1   # 同时记录需求，等待仓库补货
+    shelter["demand"] += 1  
     user["last_request_time"] = now
     return f"<h2>Supply granted! User {UID} now has {user['requestLimit']} requests left. Shelter {ShID} has {shelter['supply']} supply left. The time between the user asked for supply is {user["last_time_request"]}</h2>"
 
@@ -256,41 +259,46 @@ def request_supply():
 def auto_dispatch_request():
     truck_capacity = int(request.form.get("truck_capacity", 25))
     supply_type = request.form.get("supply_type", "general")
-
     dispatched_trucks = []
 
     for shelter in Database.shelters:
         threshold = 50
-        demand = max(0, threshold - shelter["supply"])
+        # 计算需要派车的数量
+        demand = max(0, shelter["demand"] + threshold - shelter["supply"])
 
         while demand > 0:
-            repo = next((r for r in Database.repository if r.get("supply", 0) > 0), None)
+            # 找最近且有 supply 的 repository
+            repo = next((r for r in Database.repository if r["supply"].get(supply_type, 0) > 0), None)
             if not repo:
-                return "<h2>No repositories have enough supply!</h2>"
+                break  # 没有仓库了
 
-            move_amount = min(truck_capacity, repo["supply"], demand)
-
+            move_amount = min(truck_capacity, repo["supply"][supply_type], demand)
+            # 创建 truck
             truck = {
                 "TID": Database.TID,
-                "from_repository": repo.get("RID", 1),
+                "from_repository": repo["RID"],
                 "to_shelter": shelter["ShID"],
                 "truck_supply": move_amount,
-                "supply_type": supply_type
+                "supply_type": supply_type,
+                "status": "dispatched"
             }
-            Database.truck.append(truck)
+            Database.trucks.append(truck)
             Database.TID += 1
 
-            repo["supply"] -= move_amount
+            # 更新仓库和 shelter
+            repo["supply"][supply_type] -= move_amount
             shelter["supply"] += move_amount
+            shelter["demand"] -= move_amount
 
             dispatched_trucks.append(truck)
-
-            demand = max(0, threshold - shelter["supply"])
+            # 重新计算需求
+            demand = max(0, shelter["demand"] + threshold - shelter["supply"])
 
     return jsonify({
         "message": f"Auto dispatch complete! {len(dispatched_trucks)} trucks dispatched for {supply_type}.",
         "trucks": dispatched_trucks
     })
+
 
 
 for i in range(5):
