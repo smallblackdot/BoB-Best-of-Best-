@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Victims, Shelters & Repositories Display</title>
+<style>
+  #map {
+    position: relative;
+    width: 800px;
+    height: 500px;
+    background: #eef;
+    border: 1px solid black;
+    margin: 20px auto;
+  }
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    position: absolute;
+    cursor: pointer;
+  }
+  .victim { background-color: red; }
+  .shelter { background-color: blue; }
+  .repository { background-color: green; }
+  .truck { background-color: lime; }
+  .tooltip {
+    position: absolute;
+    padding: 5px 10px;
+    background: white;
+    border: 1px solid black;
+    border-radius: 4px;
+    display: none;
+    font-size: 12px;
+    pointer-events: none;
+  }
+  svg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+</style>
+</head>
+<body>
+<h2 style="text-align:center;">Victims, Shelters & Repositories</h2>
+<div id="map">
+  <svg id="connections"></svg>
+</div>
+<div id="tooltip" class="tooltip"></div>
+
+<script>
+const map = document.getElementById("map");
+const tooltip = document.getElementById("tooltip");
+const svg = document.getElementById("connections");
+const DOT_SIZE = 12;
+const DOT_RADIUS = DOT_SIZE / 2;
+
+let victims = [];
+let shelters = [];
+let repositories = [];
+let trucks = [];
+
+// Scale coordinates to map size
+function scaleX(x){ return x / 100 * (map.clientWidth - DOT_SIZE); }
+function scaleY(y){ return y / 100 * (map.clientHeight - DOT_SIZE); }
+
+function clearMap(){
+  map.querySelectorAll(".dot").forEach(d => d.remove());
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+}
+
+function drawLine(x1, y1, x2, y2){
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", x1);
+  line.setAttribute("y1", y1);
+  line.setAttribute("x2", x2);
+  line.setAttribute("y2", y2);
+  line.setAttribute("stroke", "orange");
+  line.setAttribute("stroke-width", 2);
+  svg.appendChild(line);
+}
+
+function draw(){
+  clearMap();
+
+  // Draw victims
+  victims.forEach(v => {
+    const dot = document.createElement("div");
+    dot.className = "dot victim";
+    dot.style.left = scaleX(v.address_x) + "px";
+    dot.style.top = scaleY(v.address_y) + "px";
+    dot.style.zIndex = 3;
+    dot.addEventListener("mouseenter", () => {
+      tooltip.innerHTML = `Victim ID: ${v.UID}<br>Name: ${v.name}<br>Requests left: ${v.requestLimit}`;
+      tooltip.style.left = scaleX(v.address_x) + DOT_SIZE + "px";
+      tooltip.style.top = scaleY(v.address_y) - 10 + "px";
+      tooltip.style.display = "block";
+    });
+    dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+    map.appendChild(dot);
+  });
+
+  // Draw shelters
+  shelters.forEach(s => {
+    const dot = document.createElement("div");
+    dot.className = "dot shelter";
+    dot.style.left = scaleX(s.address_x) + "px";
+    dot.style.top = scaleY(s.address_y) + "px";
+    dot.style.zIndex = 2;
+    dot.addEventListener("mouseenter", () => {
+      tooltip.innerHTML = `Shelter: ${s.address || "Unnamed"}<br>Supply: ${s.supply}`;
+      tooltip.style.left = scaleX(s.address_x) + DOT_SIZE + "px";
+      tooltip.style.top = scaleY(s.address_y) - 10 + "px";
+      tooltip.style.display = "block";
+    });
+    dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+    map.appendChild(dot);
+  });
+
+  // Draw repositories and lines to shelters
+  repositories.forEach(r => {
+    const dot = document.createElement("div");
+    dot.className = "dot repository";
+    dot.style.left = scaleX(r.address_x) + "px";
+    dot.style.top = scaleY(r.address_y) + "px";
+    dot.style.zIndex = 4;
+    dot.addEventListener("mouseenter", () => {
+      tooltip.innerHTML = `Repository ID: ${r.RID}<br>Name: ${r.repository_name}<br>Supply: ${r.supply.general}`;
+      tooltip.style.left = scaleX(r.address_x) + DOT_SIZE + "px";
+      tooltip.style.top = scaleY(r.address_y) - 10 + "px";
+      tooltip.style.display = "block";
+    });
+    dot.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+    map.appendChild(dot);
+
+    // Draw lines to shelters
+    shelters.forEach(s => {
+      drawLine(
+        scaleX(r.address_x) + DOT_RADIUS,
+        scaleY(r.address_y) + DOT_RADIUS,
+        scaleX(s.address_x) + DOT_RADIUS,
+        scaleY(s.address_y) + DOT_RADIUS
+      );
+    });
+  });
+}
+
+function fetchDataAndDraw(){
+  Promise.all([
+    fetch("http://127.0.0.1:5000/api/users").then(r=>r.json()),
+    fetch("http://127.0.0.1:5000/api/shelters").then(r=>r.json()),
+    fetch("http://127.0.0.1:5000/api/repositories").then(r=>r.json())
+  ]).then(([v,s,r])=>{
+    victims = v;
+    shelters = s;
+    repositories = r;
+    draw();
+  }).catch(err => console.error("Fetch error:", err));
+}
+
+// Initial draw
+fetchDataAndDraw();
+setInterval(fetchDataAndDraw, 2000); // Refresh every 2 seconds
+window.addEventListener("resize", draw);
+</script>
+</body>
+</html>
