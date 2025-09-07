@@ -48,14 +48,6 @@ def api_users():
 def api_shelters():
     return jsonify(Database.shelters)
 
-@app.route("/")
-def home():
-    return "<h1>Welcome to the Disaster Relief Website</h1>"
-
-@app.route("/about")
-def about():
-    return "<h2>About</h2><p>This site helps track shelters and donations.</p>"
-
 # Add user route
 @app.route("/add_user", methods=["POST"])
 def add_user():
@@ -100,7 +92,7 @@ def add_shelter():
     Database.ShID += 1
     return f"<h2>Shelter {shelter['ShID']} added at {address_shelter}</h2>"
 
-@app.route("/repository", methods=["POST"])
+@app.route("/add_repository", methods=["POST"])
 def add_repository():
     repository_name = request.form.get("repository_name")
     address_repository = request.form.get("address_repository")
@@ -115,7 +107,7 @@ def add_repository():
     Database.repository.append(repository)
     return f"<h2>Repository {repository["RID"]} added at {address_repository}</h2>"
 
-@app.route("/truck", methods=["POST"])
+@app.route("/add_truck", methods=["POST"])
 def add_Truck():
 
     num_of_trucks = request.form.get("num_of_trucks")
@@ -132,13 +124,13 @@ def add_Truck():
         "truck_supply": truck_supply,
     }
 
-@app.route("/request_supply", methods=["POST"])
+@app.route("/request_truck", methods=["POST"])
 def request_truck():
     add_Truck()
     add_supply_to(add_shelter.supply, add_Truck.truck_supply)
 
 
-@app.route("/add_supply", methods=["POST"])
+@app.route("/add_supply_to", methods=["POST"])
 def add_supply_to(place, supply_num):
     place += supply_num
     return f"<h2>Supply {place.supply} {supply_num}</h2>"
